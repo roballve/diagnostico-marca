@@ -58,6 +58,7 @@ Campos a recopilar (en este orden):
 18. plan_comunicacion (tienen plan o calendario de comunicación: SÍ/NO + detalle)
 19. objetivo_comunicacion (con qué objetivo comunican)
 20. metricas (miden algo de su comunicación)
+21. publicidad_paga (hacen publicidad paga como Meta o Google Ads, y cuánto invierten por mes aproximadamente)
 
 Cuando tengas todos los datos, devolvé solo:
 DATOS_COMPLETOS_JSON: {"nombre_persona": "...", "rol": "...", ...}"""
@@ -102,6 +103,7 @@ Usan IA en su comunicación (cómo): {datos.get('uso_ia')}
 Tienen plan o calendario de comunicación: {datos.get('plan_comunicacion')}
 Con qué objetivo comunican: {datos.get('objetivo_comunicacion')}
 Miden algo de su comunicación: {datos.get('metricas')}
+Publicidad paga e inversión mensual: {datos.get('publicidad_paga')}
 
 Generá el diagnóstico con exactamente esta estructura:
 
