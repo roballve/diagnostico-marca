@@ -116,37 +116,42 @@ Una oportunidad concreta: [Una sola acción específica y accionable que podría
 
 
 def enviar_email(datos: dict, diagnostico: str):
-    """Envía el diagnóstico por email. Devuelve (ok: bool, error: str)."""
+    """Envia el diagnostico por email. Devuelve (ok: bool, error: str)."""
     if not all([OWNER_EMAIL, SMTP_USER, SMTP_PASS]):
         faltantes = [k for k, v in {"OWNER_EMAIL": OWNER_EMAIL, "SMTP_USER": SMTP_USER, "SMTP_PASS": SMTP_PASS}.items() if not v]
         return False, f"Faltan variables de entorno: {', '.join(faltantes)}"
     try:
-        def ascii(s):
+        def limpiar(s):
             return str(s).encode("ascii", "replace").decode("ascii")
 
-        persona = ascii(datos.get("nombre_persona", "participante"))
-        empresa = ascii(datos.get("nombre_empresa", "empresa")).replace(" ", "_")
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = ascii(f"[Taller Marca] Diagnostico de {empresa} - {persona}")
+        persona = limpiar(datos.get("nombre_persona", "participante"))
+        empresa = limpiar(datos.get("nombre_empresa", "empresa")).replace(" ", "_")
+
+        lineas = [
+            "NUEVO DIAGNOSTICO DE MARCA",
+            "=" * 50,
+            f"PARTICIPANTE: {persona} <{limpiar(datos.get('email', ''))}>",
+            f"EMPRESA: {empresa}",
+            "",
+            "DATOS RECOPILADOS:",
+        ]
+        for k, v in datos.items():
+            lineas.append(f"  {limpiar(k)}: {limpiar(v)}")
+        lineas += ["", "DIAGNOSTICO:", "=" * 50, limpiar(diagnostico)]
+        cuerpo = "\n".join(lineas)
+
+        asunto = limpiar(f"[Taller Marca] Diagnostico de {empresa} - {persona}")
+
+        import email.message
+        msg = email.message.EmailMessage()
+        msg["Subject"] = asunto
         msg["From"] = SMTP_USER
         msg["To"] = OWNER_EMAIL
+        msg.set_content(cuerpo)
 
-        cuerpo_datos = "\n".join(f"  {k}: {ascii(v)}" for k, v in datos.items())
-        cuerpo = (
-            "NUEVO DIAGNOSTICO DE MARCA\n"
-            + "=" * 50 + "\n"
-            + f"PARTICIPANTE: {persona} <{ascii(datos.get('email', ''))}>\n"
-            + f"EMPRESA: {empresa}\n\n"
-            + "DATOS RECOPILADOS:\n"
-            + cuerpo_datos + "\n\n"
-            + "DIAGNOSTICO:\n"
-            + "=" * 50 + "\n"
-            + ascii(diagnostico)
-        )
-        msg.attach(MIMEText(cuerpo, "plain"))
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(SMTP_USER, OWNER_EMAIL, msg.as_string())
+            server.send_message(msg)
         return True, ""
     except Exception as e:
         return False, str(e)
