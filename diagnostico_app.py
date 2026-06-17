@@ -141,7 +141,8 @@ DIAGNÓSTICO:
 {'='*50}
 {diagnostico}
 """
-        msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
+        cuerpo_limpio = cuerpo.encode("ascii", "replace").decode("ascii")
+        msg.attach(MIMEText(cuerpo_limpio, "plain"))
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_USER, OWNER_EMAIL, msg.as_string())
