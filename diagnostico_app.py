@@ -145,8 +145,8 @@ def enviar_email(datos: dict, diagnostico: str):
         import email.message
         msg = email.message.EmailMessage()
         msg["Subject"] = asunto
-        msg["From"] = SMTP_USER
-        msg["To"] = OWNER_EMAIL
+        msg["From"] = limpiar(SMTP_USER).strip()
+        msg["To"] = limpiar(OWNER_EMAIL).strip()
         msg.set_content(cuerpo)
 
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
@@ -263,25 +263,6 @@ def main():
 
     init_session()
 
-    # ── Panel de prueba de email (sidebar) ───────────────────────────────────
-    with st.sidebar:
-        st.markdown("### ⚙️ Panel de administración")
-        if st.button("📧 Probar envío de email"):
-            datos_prueba = {
-                "nombre_persona": "Prueba",
-                "rol": "Admin",
-                "email": SMTP_USER,
-                "nombre_empresa": "Test",
-            }
-            ok, error = enviar_email(datos_prueba, "Este es un email de prueba del sistema.")
-            if ok:
-                st.success(f"✅ Email enviado correctamente a {OWNER_EMAIL}")
-            else:
-                st.error(f"❌ Error: {error}")
-        st.markdown("---")
-        st.caption(f"OWNER_EMAIL: `{OWNER_EMAIL or '⚠️ no configurado'}`")
-        st.caption(f"SMTP_USER: `{SMTP_USER or '⚠️ no configurado'}`")
-        st.caption(f"SMTP_PASS: `{'✅ configurado' if SMTP_PASS else '⚠️ no configurado'}`")
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
