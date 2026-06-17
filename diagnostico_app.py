@@ -115,6 +115,41 @@ La tensión principal: [El punto donde hay más distancia entre quiénes dicen s
 Una oportunidad concreta: [Una sola acción específica y accionable que podrían implementar para reducir la tensión identificada. Que sea realista para una pyme, sin mencionar herramientas pagas ni servicios de terceros. Derivá de lo que ya tienen, no de lo que les falta comprar.]"""
 
 
+def enviar_email(datos: dict, diagnostico: str):
+    """Envía el diagnóstico por email. Devuelve (ok: bool, error: str)."""
+    if not all([OWNER_EMAIL, SMTP_USER, SMTP_PASS]):
+        faltantes = [k for k, v in {"OWNER_EMAIL": OWNER_EMAIL, "SMTP_USER": SMTP_USER, "SMTP_PASS": SMTP_PASS}.items() if not v]
+        return False, f"Faltan variables de entorno: {', '.join(faltantes)}"
+    try:
+        persona = datos.get("nombre_persona", "participante")
+        empresa = datos.get("nombre_empresa", "empresa").replace(" ", "_")
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"[Taller Marca] Diagnóstico de {empresa} — {persona}"
+        msg["From"] = SMTP_USER
+        msg["To"] = OWNER_EMAIL
+
+        cuerpo_datos = "\n".join(f"  {k}: {v}" for k, v in datos.items())
+        cuerpo = f"""NUEVO DIAGNÓSTICO DE MARCA
+{'='*50}
+PARTICIPANTE: {persona} <{datos.get('email', '')}>
+EMPRESA: {empresa}
+
+DATOS RECOPILADOS:
+{cuerpo_datos}
+
+DIAGNÓSTICO:
+{'='*50}
+{diagnostico}
+"""
+        msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, OWNER_EMAIL, msg.as_string())
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+
 def guardar_y_notificar(datos: dict, diagnostico: str):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -128,33 +163,7 @@ def guardar_y_notificar(datos: dict, diagnostico: str):
             "diagnostico": diagnostico,
         }, f, ensure_ascii=False, indent=2)
 
-    if all([OWNER_EMAIL, SMTP_USER, SMTP_PASS]):
-        try:
-            persona = datos.get("nombre_persona", "participante")
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = f"[Taller Marca] Diagnóstico de {empresa} — {persona}"
-            msg["From"] = SMTP_USER
-            msg["To"] = OWNER_EMAIL
-
-            cuerpo_datos = "\n".join(f"  {k}: {v}" for k, v in datos.items())
-            cuerpo = f"""NUEVO DIAGNÓSTICO DE MARCA
-{'='*50}
-PARTICIPANTE: {persona} <{datos.get('email', '')}>
-EMPRESA: {empresa}
-
-DATOS RECOPILADOS:
-{cuerpo_datos}
-
-DIAGNÓSTICO:
-{'='*50}
-{diagnostico}
-"""
-            msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
-            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-                server.login(SMTP_USER, SMTP_PASS)
-                server.sendmail(SMTP_USER, OWNER_EMAIL, msg.as_string())
-        except Exception:
-            pass  # Fallo silencioso en email
+    enviar_email(datos, diagnostico)
 
 
 def obtener_respuesta_agente(client: anthropic.Anthropic, historial: list) -> str:
@@ -246,6 +255,26 @@ def main():
     """, unsafe_allow_html=True)
 
     init_session()
+
+    # ── Panel de prueba de email (sidebar) ───────────────────────────────────
+    with st.sidebar:
+        st.markdown("### ⚙️ Panel de administración")
+        if st.button("📧 Probar envío de email"):
+            datos_prueba = {
+                "nombre_persona": "Prueba",
+                "rol": "Admin",
+                "email": SMTP_USER,
+                "nombre_empresa": "Test",
+            }
+            ok, error = enviar_email(datos_prueba, "Este es un email de prueba del sistema.")
+            if ok:
+                st.success(f"✅ Email enviado correctamente a {OWNER_EMAIL}")
+            else:
+                st.error(f"❌ Error: {error}")
+        st.markdown("---")
+        st.caption(f"OWNER_EMAIL: `{OWNER_EMAIL or '⚠️ no configurado'}`")
+        st.caption(f"SMTP_USER: `{SMTP_USER or '⚠️ no configurado'}`")
+        st.caption(f"SMTP_PASS: `{'✅ configurado' if SMTP_PASS else '⚠️ no configurado'}`")
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
