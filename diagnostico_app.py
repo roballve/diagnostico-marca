@@ -121,28 +121,29 @@ def enviar_email(datos: dict, diagnostico: str):
         faltantes = [k for k, v in {"OWNER_EMAIL": OWNER_EMAIL, "SMTP_USER": SMTP_USER, "SMTP_PASS": SMTP_PASS}.items() if not v]
         return False, f"Faltan variables de entorno: {', '.join(faltantes)}"
     try:
-        persona = datos.get("nombre_persona", "participante")
-        empresa = datos.get("nombre_empresa", "empresa").replace(" ", "_")
+        def ascii(s):
+            return str(s).encode("ascii", "replace").decode("ascii")
+
+        persona = ascii(datos.get("nombre_persona", "participante"))
+        empresa = ascii(datos.get("nombre_empresa", "empresa")).replace(" ", "_")
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"[Taller Marca] Diagnóstico de {empresa} — {persona}"
+        msg["Subject"] = ascii(f"[Taller Marca] Diagnostico de {empresa} - {persona}")
         msg["From"] = SMTP_USER
         msg["To"] = OWNER_EMAIL
 
-        cuerpo_datos = "\n".join(f"  {k}: {v}" for k, v in datos.items())
-        cuerpo = f"""NUEVO DIAGNÓSTICO DE MARCA
-{'='*50}
-PARTICIPANTE: {persona} <{datos.get('email', '')}>
-EMPRESA: {empresa}
-
-DATOS RECOPILADOS:
-{cuerpo_datos}
-
-DIAGNÓSTICO:
-{'='*50}
-{diagnostico}
-"""
-        cuerpo_limpio = cuerpo.encode("ascii", "replace").decode("ascii")
-        msg.attach(MIMEText(cuerpo_limpio, "plain"))
+        cuerpo_datos = "\n".join(f"  {k}: {ascii(v)}" for k, v in datos.items())
+        cuerpo = (
+            "NUEVO DIAGNOSTICO DE MARCA\n"
+            + "=" * 50 + "\n"
+            + f"PARTICIPANTE: {persona} <{ascii(datos.get('email', ''))}>\n"
+            + f"EMPRESA: {empresa}\n\n"
+            + "DATOS RECOPILADOS:\n"
+            + cuerpo_datos + "\n\n"
+            + "DIAGNOSTICO:\n"
+            + "=" * 50 + "\n"
+            + ascii(diagnostico)
+        )
+        msg.attach(MIMEText(cuerpo, "plain"))
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_USER, OWNER_EMAIL, msg.as_string())
